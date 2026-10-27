@@ -1,4 +1,5 @@
 import { Application, ApplicationStatus, Interview, FeedbackEntry, CompanyDrive } from '@/types';
+import { applicationsList, upcomingInterviews } from '@/data/mockData';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
 const SESSION_KEY = 'placement-tracker-session';
@@ -85,7 +86,13 @@ export function logout() {
 
 export function getCurrentUser(): { name: string; email: string; studentId: number } | null {
   const session = getSession();
-  if (!session) return null;
+  if (!session) {
+    return {
+      name: 'Rohan Verma',
+      email: 'rohan.verma@university.edu',
+      studentId: 1084,
+    };
+  }
   return {
     name: session.fullName || 'Student User',
     email: session.email || '',
@@ -193,14 +200,14 @@ export async function updateApplicationStatus(
   } catch {
     // If backend offline, update in local storage
     const session = getSession();
-    if (session) {
-      const key = `user_apps_${session.studentId}`;
-      const stored = localStorage.getItem(key);
-      if (stored) {
-        const apps: Application[] = JSON.parse(stored);
-        const updated = apps.map((a) => (a.id === id ? { ...a, status } : a));
-        localStorage.setItem(key, JSON.stringify(updated));
-      }
+    const key = session ? `user_apps_${session.studentId}` : 'demo_user_apps';
+    const stored = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
+    const currentList: Application[] = stored ? JSON.parse(stored) : [...applicationsList];
+    const updated = currentList.map((a) =>
+      a.id === id ? { ...a, status, statusDetail: status === 'Selected' ? 'Offer Extended 🎉' : a.statusDetail } : a
+    );
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(key, JSON.stringify(updated));
     }
   }
 }
@@ -211,11 +218,14 @@ export async function getApplications(): Promise<Application[]> {
     return applications.map(toApplication);
   } catch (err) {
     const session = getSession();
-    if (!session) return [];
-    // User-specific storage key so logging out preserves this user's data on log back in
-    const key = `user_apps_${session.studentId}`;
-    const local = localStorage.getItem(key);
-    return local ? JSON.parse(local) : [];
+    const key = session ? `user_apps_${session.studentId}` : 'demo_user_apps';
+    const local = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
+    if (local) return JSON.parse(local);
+    if (!session && typeof window !== 'undefined') {
+      localStorage.setItem('demo_user_apps', JSON.stringify(applicationsList));
+      return applicationsList;
+    }
+    return [];
   }
 }
 
@@ -245,11 +255,11 @@ export async function createApplicationFromDraft(draft: Application): Promise<Ap
   } catch (err) {
     // If backend is offline or network error, persist in student's private persistent store
     const session = getSession();
-    if (session) {
-      const key = `user_apps_${session.studentId}`;
-      const existing = localStorage.getItem(key);
-      const apps: Application[] = existing ? JSON.parse(existing) : [];
-      apps.unshift(draft);
+    const key = session ? `user_apps_${session.studentId}` : 'demo_user_apps';
+    const existing = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
+    const apps: Application[] = existing ? JSON.parse(existing) : [...applicationsList];
+    apps.unshift(draft);
+    if (typeof window !== 'undefined') {
       localStorage.setItem(key, JSON.stringify(apps));
     }
     return draft;
@@ -294,10 +304,26 @@ export async function getInterviews(): Promise<Interview[]> {
     }));
   } catch {
     const session = getSession();
-    if (!session) return [];
-    const key = `user_interviews_${session.studentId}`;
-    const stored = localStorage.getItem(key);
-    return stored ? JSON.parse(stored) : [];
+    const key = session ? `user_interviews_${session.studentId}` : 'demo_user_interviews';
+    const stored = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
+    if (stored) return JSON.parse(stored);
+    if (!session && typeof window !== 'undefined') {
+      const initialIntvs: Interview[] = upcomingInterviews.map((item) => ({
+        id: item.id,
+        company: item.company,
+        role: item.role || 'Software Engineer',
+        roundName: item.roundName,
+        date: item.date,
+        timeSlot: item.timeSlot,
+        format: item.platform.toLowerCase().includes('campus') ? 'In-Person' : 'Online',
+        status: item.hasClash ? 'Conflict Alert' : 'Confirmed',
+        platform: item.platform,
+        interviewer: item.interviewer,
+      }));
+      localStorage.setItem('demo_user_interviews', JSON.stringify(initialIntvs));
+      return initialIntvs;
+    }
+    return [];
   }
 }
 
@@ -323,11 +349,11 @@ export async function saveInterview(interview: Interview): Promise<Interview> {
     };
   } catch {
     const session = getSession();
-    if (session) {
-      const key = `user_interviews_${session.studentId}`;
-      const stored = localStorage.getItem(key);
-      const list: Interview[] = stored ? JSON.parse(stored) : [];
-      const updated = [interview, ...list.filter((i) => i.id !== interview.id)];
+    const key = session ? `user_interviews_${session.studentId}` : 'demo_user_interviews';
+    const stored = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
+    const list: Interview[] = stored ? JSON.parse(stored) : [];
+    const updated = [interview, ...list.filter((i) => i.id !== interview.id)];
+    if (typeof window !== 'undefined') {
       localStorage.setItem(key, JSON.stringify(updated));
     }
     return interview;
@@ -340,11 +366,11 @@ export async function deleteInterview(id: string): Promise<void> {
   } catch {
     // If backend offline, remove from local storage
     const session = getSession();
-    if (session) {
-      const key = `user_interviews_${session.studentId}`;
-      const stored = localStorage.getItem(key);
-      if (stored) {
-        const list: Interview[] = JSON.parse(stored);
+    const key = session ? `user_interviews_${session.studentId}` : 'demo_user_interviews';
+    const stored = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
+    if (stored) {
+      const list: Interview[] = JSON.parse(stored);
+      if (typeof window !== 'undefined') {
         localStorage.setItem(key, JSON.stringify(list.filter((i) => i.id !== id)));
       }
     }
