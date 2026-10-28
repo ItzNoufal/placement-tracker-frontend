@@ -192,44 +192,110 @@ export async function updateApplicationStatus(
   id: string,
   status: ApplicationStatus
 ): Promise<void> {
+  const session = getSession();
+  const key = session ? `user_apps_${session.studentId}` : 'demo_user_apps';
+
+  // 1. ALWAYS update local storage first so changes are immediately persisted
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem(key);
+    let list: Application[] = [];
+    if (stored) {
+      try {
+        list = JSON.parse(stored);
+      } catch {
+        list = [...applicationsList];
+      }
+    } else {
+      list = [...applicationsList];
+    }
+
+    const updated = list.map((a) =>
+      String(a.id) === String(id)
+        ? {
+            ...a,
+            status,
+            statusDetail: status === 'Selected' ? 'Offer Extended 🎉' : a.statusDetail,
+            nextStep: status === 'Selected' ? 'Offer Letter Verified & Accepted' : a.nextStep,
+          }
+        : a
+    );
+    localStorage.setItem(key, JSON.stringify(updated));
+    localStorage.setItem('demo_user_apps', JSON.stringify(updated));
+
+    // Broadcast change across the whole app (Dashboard, Progress, Navbar, etc.)
+    window.dispatchEvent(new CustomEvent('application-updated', { detail: { id, status } }));
+    window.dispatchEvent(new Event('new-application-added'));
+  }
+
+  // 2. Sync with backend if available
   try {
-    await request<unknown>(`/api/applications/${id}`, {
+    await request<unknown>(`/api/applications/${id}/status`, {
       method: 'PUT',
       body: JSON.stringify({ status: backendStatus(status) }),
     });
   } catch {
-    // If backend offline, update in local storage
-    const session = getSession();
-    const key = session ? `user_apps_${session.studentId}` : 'demo_user_apps';
-    const stored = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
-    const currentList: Application[] = stored ? JSON.parse(stored) : [...applicationsList];
-    const updated = currentList.map((a) =>
-      a.id === id ? { ...a, status, statusDetail: status === 'Selected' ? 'Offer Extended 🎉' : a.statusDetail } : a
-    );
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(key, JSON.stringify(updated));
+    try {
+      await request<unknown>(`/api/applications/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: backendStatus(status) }),
+      });
+    } catch {
+      // Local storage is already the source of truth
     }
   }
 }
 
 export async function getApplications(): Promise<Application[]> {
+  const session = getSession();
+  const key = session ? `user_apps_${session.studentId}` : 'demo_user_apps';
+
   try {
     const applications = await request<ApiApplication[]>('/api/applications');
-    return applications.map(toApplication);
+    const mapped = applications.map(toApplication);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(key, JSON.stringify(mapped));
+    }
+    return mapped;
   } catch (err) {
-    const session = getSession();
-    const key = session ? `user_apps_${session.studentId}` : 'demo_user_apps';
-    const local = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
-    if (local) return JSON.parse(local);
-    if (!session && typeof window !== 'undefined') {
-      localStorage.setItem('demo_user_apps', JSON.stringify(applicationsList));
+    if (typeof window !== 'undefined') {
+      const local = localStorage.getItem(key);
+      if (local) {
+        try {
+          const parsed = JSON.parse(local);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch {
+          // ignore parse error
+        }
+      }
+      localStorage.setItem(key, JSON.stringify(applicationsList));
       return applicationsList;
     }
-    return [];
+    return applicationsList;
   }
 }
 
 export async function createApplicationFromDraft(draft: Application): Promise<Application> {
+  const session = getSession();
+  const key = session ? `user_apps_${session.studentId}` : 'demo_user_apps';
+
+  if (typeof window !== 'undefined') {
+    const existing = localStorage.getItem(key);
+    let apps: Application[] = [];
+    if (existing) {
+      try {
+        apps = JSON.parse(existing);
+      } catch {
+        apps = [...applicationsList];
+      }
+    } else {
+      apps = [...applicationsList];
+    }
+    apps = [draft, ...apps.filter((a) => a.id !== draft.id)];
+    localStorage.setItem(key, JSON.stringify(apps));
+    localStorage.setItem('demo_user_apps', JSON.stringify(apps));
+    window.dispatchEvent(new Event('new-application-added'));
+  }
+
   try {
     const companies = await request<ApiCompany[]>('/api/companies');
     let company = companies.find(
@@ -253,15 +319,6 @@ export async function createApplicationFromDraft(draft: Application): Promise<Ap
     });
     return toApplication(application);
   } catch (err) {
-    // If backend is offline or network error, persist in student's private persistent store
-    const session = getSession();
-    const key = session ? `user_apps_${session.studentId}` : 'demo_user_apps';
-    const existing = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
-    const apps: Application[] = existing ? JSON.parse(existing) : [...applicationsList];
-    apps.unshift(draft);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(key, JSON.stringify(apps));
-    }
     return draft;
   }
 }

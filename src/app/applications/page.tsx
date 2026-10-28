@@ -15,6 +15,7 @@ export default function ApplicationsPage() {
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
+  const [celebrationCompany, setCelebrationCompany] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchApps = () => {
@@ -30,10 +31,12 @@ export default function ApplicationsPage() {
 
     const handleNewApp = () => fetchApps();
     window.addEventListener('new-application-added', handleNewApp);
+    window.addEventListener('application-updated', handleNewApp);
     window.addEventListener('auth-change', handleNewApp);
 
     return () => {
       window.removeEventListener('new-application-added', handleNewApp);
+      window.removeEventListener('application-updated', handleNewApp);
       window.removeEventListener('auth-change', handleNewApp);
     };
   }, []);
@@ -77,6 +80,10 @@ export default function ApplicationsPage() {
   };
 
   const handleStatusChange = async (id: string, newStatus: ApplicationStatus) => {
+    const target = apps.find((a) => a.id === id);
+    if (newStatus === 'Selected') {
+      setCelebrationCompany(target?.company || 'Company');
+    }
     await updateApplicationStatus(id, newStatus);
     setApps((prev) =>
       prev.map((app) =>
@@ -85,6 +92,7 @@ export default function ApplicationsPage() {
               ...app,
               status: newStatus,
               statusDetail: newStatus === 'Selected' ? 'Offer Extended 🎉' : undefined,
+              nextStep: newStatus === 'Selected' ? 'Offer Letter Verified & Accepted' : app.nextStep,
             }
           : app
       )
@@ -113,6 +121,31 @@ export default function ApplicationsPage() {
           <span>+ Add Application</span>
         </button>
       </div>
+
+      {/* Celebration Banner when user gets a job offer */}
+      {celebrationCompany && (
+        <div className="rounded-xl bg-gradient-to-r from-emerald-950/80 via-[#111827] to-[#151f32] border border-emerald-500/50 p-4 shadow-xl shadow-emerald-500/10 flex items-center justify-between gap-4 animate-in fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-[24px] animate-bounce">celebration</span>
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-white font-display">
+                🎉 Congratulations! Offer Secured at {celebrationCompany}!
+              </h4>
+              <p className="text-xs text-emerald-300 font-sans mt-0.5">
+                Saved! Milestone progress on Dashboard has reached 100% complete.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setCelebrationCompany(null)}
+            className="text-slate-400 hover:text-white p-1 rounded"
+          >
+            <span className="material-symbols-outlined text-[18px]">close</span>
+          </button>
+        </div>
+      )}
 
       {/* KPI Stat Tiles (4 Grid - dynamically computed) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">

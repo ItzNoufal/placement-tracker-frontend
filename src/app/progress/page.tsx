@@ -9,11 +9,26 @@ export default function ProgressPage() {
   const [apps, setApps] = useState<Application[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
+  const loadApps = () => {
+    setIsLoading(true);
     getApplications()
       .then((data) => setApps(data))
       .catch(() => setApps([]))
       .finally(() => setIsLoading(false));
+  };
+
+  useEffect(() => {
+    loadApps();
+
+    window.addEventListener('application-updated', loadApps);
+    window.addEventListener('new-application-added', loadApps);
+    window.addEventListener('auth-change', loadApps);
+
+    return () => {
+      window.removeEventListener('application-updated', loadApps);
+      window.removeEventListener('new-application-added', loadApps);
+      window.removeEventListener('auth-change', loadApps);
+    };
   }, []);
 
   const total = apps.length;

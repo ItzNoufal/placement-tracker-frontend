@@ -82,10 +82,27 @@ export default function MilestoneRail({
         </div>
 
         {/* Dynamic Encouragement Message */}
-        <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-[#3b82f6]/10 border border-[#3b82f6]/20 text-slate-200">
-          <span className="material-symbols-outlined text-[16px] text-[#22d3ee]">verified</span>
+        <div
+          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg border transition-all ${
+            offerCount > 0
+              ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-200'
+              : 'bg-[#3b82f6]/10 border-[#3b82f6]/20 text-slate-200'
+          }`}
+        >
+          <span
+            className={`material-symbols-outlined text-[18px] ${
+              offerCount > 0 ? 'text-emerald-400 animate-bounce' : 'text-[#22d3ee]'
+            }`}
+          >
+            {offerCount > 0 ? 'celebration' : 'verified'}
+          </span>
           <span className="text-[12px] sm:text-[13px] font-medium">
-            {applicationCount === 0 && interviewCount === 0 ? (
+            {offerCount > 0 ? (
+              <span>
+                🎉 <strong className="text-white font-bold">Offer Secured!</strong> You achieved{' '}
+                <strong className="text-emerald-300 font-bold">{offerCount} placement offer{offerCount > 1 ? 's' : ''}</strong>! Milestone 100% complete.
+              </span>
+            ) : applicationCount === 0 && interviewCount === 0 ? (
               <span>
                 Start your journey: <strong className="text-white">+ Add your first application</strong> to initiate tracking.
               </span>
@@ -112,7 +129,11 @@ export default function MilestoneRail({
           {/* Subtle Glowing Connecting Rail behind nodes (Desktop) */}
           <div className="hidden lg:block absolute top-6 left-[8%] right-[8%] h-1 bg-slate-800/90 -z-0">
             <div
-              className="h-full bg-gradient-to-r from-[#3b82f6] via-[#22d3ee] to-[#3b82f6]/60 rounded-full transition-all duration-700"
+              className={`h-full rounded-full transition-all duration-700 ${
+                offerCount > 0
+                  ? 'bg-gradient-to-r from-[#3b82f6] via-[#22d3ee] to-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.6)]'
+                  : 'bg-gradient-to-r from-[#3b82f6] via-[#22d3ee] to-[#3b82f6]/60'
+              }`}
               style={{ width: progressWidth }}
             />
           </div>
@@ -142,13 +163,13 @@ export default function MilestoneRail({
                   </div>
                 ) : isStage5 ? (
                   <div
-                    className={`w-12 h-12 rounded-full bg-[#151f32] border-2 flex items-center justify-center shadow-lg mb-3 transition-transform ${
+                    className={`w-12 h-12 rounded-full border-2 flex items-center justify-center shadow-lg mb-3 transition-transform ${
                       stage.active
-                        ? 'border-emerald-400 text-emerald-400 shadow-emerald-500/20'
-                        : 'border-slate-700 text-slate-500'
+                        ? 'border-emerald-400 bg-emerald-500/20 text-emerald-300 shadow-emerald-500/40 ring-4 ring-emerald-500/20 animate-pulse'
+                        : 'bg-[#151f32] border-slate-700 text-slate-500'
                     }`}
                   >
-                    <span className="material-symbols-outlined text-[22px]">military_tech</span>
+                    <span className="material-symbols-outlined text-[24px]">military_tech</span>
                   </div>
                 ) : isStage4 ? (
                   <div

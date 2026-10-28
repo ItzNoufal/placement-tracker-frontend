@@ -41,12 +41,14 @@ export default function DashboardPage() {
   useEffect(() => {
     loadDashboardData();
 
-    const handleNewApp = () => loadDashboardData();
-    window.addEventListener('new-application-added', handleNewApp);
+    const handleUpdate = () => loadDashboardData();
+    window.addEventListener('new-application-added', handleUpdate);
+    window.addEventListener('application-updated', handleUpdate);
     window.addEventListener('auth-change', loadDashboardData);
 
     return () => {
-      window.removeEventListener('new-application-added', handleNewApp);
+      window.removeEventListener('new-application-added', handleUpdate);
+      window.removeEventListener('application-updated', handleUpdate);
       window.removeEventListener('auth-change', loadDashboardData);
     };
   }, []);
@@ -55,7 +57,8 @@ export default function DashboardPage() {
     setApplications((prev) => [newApp, ...prev.filter((a) => a.id !== newApp.id)]);
   };
 
-  const selectedOffers = applications.filter((a) => a.status === 'Selected').length;
+  const selectedOffersList = applications.filter((a) => a.status === 'Selected');
+  const selectedOffers = selectedOffersList.length;
   const interviewingCount = applications.filter(
     (a) => a.status === 'Interviewing' || a.status === 'Conflict Alert'
   ).length;
@@ -106,6 +109,42 @@ export default function DashboardPage() {
           </button>
         </div>
       </div>
+
+      {/* Celebratory Job Offer Banner (Shown when at least 1 job is secured) */}
+      {selectedOffers > 0 && (
+        <div className="rounded-2xl bg-gradient-to-r from-emerald-950/60 via-[#111827] to-[#151f32] border border-emerald-500/40 p-5 shadow-xl shadow-emerald-500/10 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+              <span className="material-symbols-outlined text-[28px] animate-bounce">
+                military_tech
+              </span>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono-code font-bold uppercase">
+                  Goal Achieved
+                </span>
+                <span className="text-xs text-slate-400 font-mono-code">
+                  {selectedOffers} Placement Offer{selectedOffers > 1 ? 's' : ''} Secured
+                </span>
+              </div>
+              <h2 className="text-base sm:text-lg font-bold text-white font-display mt-0.5">
+                🎉 Congratulations! You Got The Job at {selectedOffersList.map((o) => o.company).join(', ')}!
+              </h2>
+              <p className="text-xs text-slate-300 font-sans mt-0.5">
+                Your placement pipeline milestone has been achieved. You can view offer details and sign verification letters below.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/applications"
+            className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shrink-0 transition-colors shadow-lg shadow-emerald-500/20"
+          >
+            <span>View All Offers</span>
+            <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+          </Link>
+        </div>
+      )}
 
       {/* 2. Primary Milestone Pipeline Rail (Driven by Real Live State) */}
       <MilestoneRail
